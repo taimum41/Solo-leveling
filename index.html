@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Solo Leveling — Status Window</title>
+<style>
+  body {
+    margin: 0;
+    font-family: "Poppins", sans-serif;
+    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+    color: #fff;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 20px;
+    min-height: 100vh;
+  }
+  .window {
+    width: 100%;
+    max-width: 600px;
+    backdrop-filter: blur(15px);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 20px;
+    padding: 20px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.6);
+  }
+  h1 {
+    text-align: center;
+    margin-bottom: 15px;
+    font-size: 1.8em;
+    background: linear-gradient(90deg, #ff00cc, #3333ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .bar-container {
+    height: 10px;
+    width: 100%;
+    background: rgba(255,255,255,0.1);
+    border-radius: 8px;
+    overflow: hidden;
+    margin: 5px 0;
+  }
+  .bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #00f260, #0575e6);
+    transition: width 0.4s;
+  }
+  input, select, button {
+    border-radius: 10px;
+    border: none;
+    padding: 10px;
+    font-size: 1em;
+    margin: 5px 0;
+  }
+  input, select {
+    width: 48%;
+  }
+  button {
+    width: 100%;
+    background: linear-gradient(90deg, #ff00cc, #3333ff);
+    color: #fff;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.3s;
+  }
+  button:hover {
+    opacity: 0.8;
+  }
+  .attribute {
+    margin: 15px 0;
+  }
+  .attr-header {
+    display: flex;
+    justify-content: space-between;
+    font-weight: bold;
+  }
+  .attr-rank {
+    color: #0ff;
+    font-size: 0.9em;
+  }
+  .home-btn {
+    text-align: center;
+    margin-top: 15px;
+  }
+</style>
+</head>
+<body>
+  <div class="window">
+    <h1>Status Window</h1>
+
+    <div id="status">
+      <p>Total XP: <span id="totalXP">0</span></p>
+      <p>Level: <span id="level">1</span> (<span id="title">The Initiate</span>)</p>
+      <p>Overall Rank: <span id="rank">F</span></p>
+      <div class="bar-container"><div id="levelBar" class="bar"></div></div>
+    </div>
+
+    <h3>Add XP</h3>
+    <select id="attributeSelect">
+      <option value="strength">Strength</option>
+      <option value="intelligence">Intelligence</option>
+      <option value="willpower">Willpower</option>
+      <option value="charisma">Charisma</option>
+      <option value="skill">Skill</option>
+    </select>
+    <input type="number" id="xpInput" placeholder="XP">
+    <button onclick="addXP()">Add</button>
+
+    <h3>Attributes</h3>
+    <div id="attributes"></div>
+
+    <div class="home-btn">
+      <button onclick="alert('Use browser → Add to Home Screen ✅')">🏠 Add to Home</button>
+      <button onclick="resetProgress()" style="background:#ff4444;margin-top:10px;">🔄 Reset</button>
+    </div>
+  </div>
+
+<script>
+const rankThresholds = [
+  { rank: "F", xp: 0 },
+  { rank: "E", xp: 500 },
+  { rank: "D", xp: 1200 },
+  { rank: "C", xp: 3000 },
+  { rank: "B", xp: 7000 },
+  { rank: "A", xp: 15000 },
+  { rank: "S", xp: 30000 },
+  { rank: "SS", xp: 60000 },
+  { rank: "SSS", xp: 120000 },
+  { rank: "SR", xp: 200000 },
+  { rank: "X", xp: 300000 },
+  { rank: "X+", xp: 450000 },
+  { rank: "Unmeasurable", xp: 700000 }
+];
+
+// generate XP thresholds for 200 levels
+let levelThresholds = [];
+for (let i = 1; i <= 200; i++) {
+  if (i <= 20) levelThresholds.push(200 + (i-1)*100);
+  else if (i <= 100) levelThresholds.push(3000 + Math.floor((i-20)/10)*200);
+  else levelThresholds.push(12000 + Math.floor((i-100)/10)*500);
+}
+
+// generate 200 titles
+const titles = [];
+const pools = [
+  "Initiate","Rising Spark","Iron Will","Pathfinder","Lone Wolf","Challenger of Limits","Shadow Hunter","Breaker of Chains","The Awakened","The Ascendant",
+  "Spiritforged","Stormbearer","Nightblade","The Relentless","Voidwalker","Dragonsoul","Titanbound","Eternal Flame","Worldshaper","Transcendent One",
+  "Seeker of Myths","Trailblazer","Dreamwalker","Guardian of Flame","Stormseeker","Runebinder","Warden of Twilight","Frostfang","Lightbearer","Starseeker",
+  "Beastmaster","Soulreaver","Stormlord","Dawnblade","Iron Vanguard","Fateshaper","Bloodfang","Oathkeeper","Shadowmancer","Deathbringer",
+  "Immortal Flame","Eternal Wanderer","Starborn","Void Herald","Chaosbringer","Timebreaker","Infinity Seeker","Cosmic Blade","Moonstrider","Sunforger",
+  "Skyshaper","Stormbreaker","Void Dancer","Frost Herald","Chaos Whisperer","Astral Knight","Galewarden","Stormreaper","Starcaller","Dreambane",
+  "Cosmic Weaver","Infinity Lord","Eternal Flamebearer","Mythslayer","Dragonbane","Heaven’s Wrath","Chaos Monarch","Void Sovereign","Shadow Monarch","World Reaver",
+  "Celestial Warden","Skyshaper","Moondancer","Sunweaver","Frostborn","Starbound","Stormforged","Chaos Herald","Cosmospeaker","Infinity Lord",
+  "Legendforger","Mythbinder","Dreamlord","Heaven’s Keeper","Soul Monarch","Star Emperor","Time Monarch","Cosmoshaper","Godwalker","Abyss Herald",
+  "Eternal Flame King","Starforger","Storm Monarch","Void Emperor","Cosmic Titan","Infinity Blade","Myth Monarch","Celestial Emperor","Abyss Monarch","Legend Sovereign",
+  "Infinity Flame","Omega Blade","Alpha Herald","Eternal Godwalker","Timeforged Titan","Dream Sovereign","Chaos King","Myth Emperor","Infinity Monarch","Final Ascendant",
+  "Eternal Sovereign","Star Sovereign","Heavenly Monarch","Soulforger","Godslayer","Abyss Emperor","Time Emperor","Cosmic Sovereign","Alpha Monarch","Omega Sovereign",
+  "God of Chaos","God of Time","God of Stars","God of Infinity","God of Flame","God of Storms","God of Shadows","God of Eternity","God of Dreams","Alpha Omega"
+];
+// fill to 200
+for (let i=0;i<200;i++) {
+  titles.push(pools[i % pools.length] + (i >= pools.length ? " +" + Math.floor(i/pools.length) : ""));
+}
+
+let data = JSON.parse(localStorage.getItem("soloLeveling200")) || {
+  level: 1,
+  totalXP: 0,
+  progressXP: 0,
+  attributes: {
+    strength: { totalXP: 0, rank: "F" },
+    intelligence: { totalXP: 0, rank: "F" },
+    willpower: { totalXP: 0, rank: "F" },
+    charisma: { totalXP: 0, rank: "F" },
+    skill: { totalXP: 0, rank: "F" }
+  }
+};
+
+function save() { localStorage.setItem("soloLeveling200", JSON.stringify(data)); }
+
+function addXP() {
+  const attr = document.getElementById("attributeSelect").value;
+  const amount = parseInt(document.getElementById("xpInput").value) || 0;
+  if (amount <= 0) return;
+  data.totalXP += amount;
+  data.progressXP += amount;
+
+  let neededXP = levelThresholds[data.level-1] || 999999999;
+  while (data.progressXP >= neededXP && data.level < 200) {
+    data.progressXP -= neededXP;
+    data.level++;
+    neededXP = levelThresholds[data.level-1] || 999999999;
+  }
+
+  data.attributes[attr].totalXP += amount;
+  for (let i = rankThresholds.length-1; i>=0; i--) {
+    if (data.attributes[attr].totalXP >= rankThresholds[i].xp) {
+      data.attributes[attr].rank = rankThresholds[i].rank;
+      break;
+    }
+  }
+  save(); updateUI();
+}
+
+function getOverallRank() {
+  let sum=0,count=0;
+  for (let k in data.attributes){ sum+=data.attributes[k].totalXP; count++; }
+  let avg=sum/count;
+  let rank="F";
+  for (let i=rankThresholds.length-1;i>=0;i--){ if(avg>=rankThresholds[i].xp){rank=rankThresholds[i].rank;break;}}
+  return rank;
+}
+
+function updateUI(){
+  document.getElementById("totalXP").innerText=data.totalXP;
+  document.getElementById("level").innerText=data.level;
+  document.getElementById("title").innerText=titles[data.level-1]||"???";
+  document.getElementById("rank").innerText=getOverallRank();
+  let needed=levelThresholds[data.level-1]||9999999;
+  document.getElementById("levelBar").style.width=(data.progressXP/needed*100)+"%";
+
+  let html="";
+  for(let k in data.attributes){
+    let a=data.attributes[k];
+    let next=rankThresholds.find(r=>r.rank===a.rank);
+    let nextXp=(rankThresholds.find(r=>r.rank===a.rank)?.xp||0);
+    let higher=rankThresholds.find(r=>r.xp>nextXp);
+    let maxXp=higher?higher.xp:nextXp;
+    let progress=Math.min(100,(a.totalXP/maxXp)*100);
+    html+=`
+      <div class="attribute">
+        <div class="attr-header"><span>${k}</span><span class="attr-rank">Rank: ${a.rank}</span></div>
+        <div class="bar-container"><div class="bar" style="width:${progress}%"></div></div>
+        <small>${a.totalXP}/${maxXp} XP</small>
+      </div>`;
+  }
+  document.getElementById("attributes").innerHTML=html;
+}
+function resetProgress(){if(confirm("Reset all progress?")){localStorage.removeItem("soloLeveling200");location.reload();}}
+updateUI();
+</script>
+</body>
+</html>
